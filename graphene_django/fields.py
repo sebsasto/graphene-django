@@ -246,3 +246,39 @@ class DjangoConnectionField(ConnectionField):
 
     def get_queryset_resolver(self):
         return self.resolve_queryset
+
+
+class DjangoQuerySetField(Field):
+    def __init__(self, _type, *args, **kwargs):
+        from .types import DjangoObjectType
+        
+        super().__init__(_type, *args, **kwargs)
+
+        assert issubclass(
+            self.type, DjangoObjectType
+        ), "DjangoField only accepts DjangoObjectType types"
+
+    @property
+    def model(self):
+        return self.type._meta.model
+
+    def get_manager(self):
+        return self.model._default_manager
+
+    @staticmethod
+    def queryset_resolver(
+        django_object_type, resolver, default_manager, root, info, **args
+    ):
+        queryset = maybe_queryset(default_manager)
+
+        if isinstance(queryset, QuerySet):
+            # Pass queryset to the DjangoObjectType get_queryset method
+            queryset = maybe_queryset(django_object_type.get_queryset(queryset, info))
+
+        return resolver(root, info, queryset, **args)
+
+    def wrap_resolve(self, parent_resolver):
+        resolver = self.resolver or parent_resolver
+        return partial(
+            self.queryset_resolver, self.type, resolver, self.get_manager(),
+        )
