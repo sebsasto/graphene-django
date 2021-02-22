@@ -261,7 +261,12 @@ class DjangoObjectType(ObjectType):
         _meta.registry = registry
         _meta.filter_fields = filter_fields
         _meta.filterset_class = filterset_class
-        _meta.fields = django_fields
+
+        if _meta.fields:
+            _meta.fields.update(django_fields)
+        else:
+            _meta.fields = fields
+
         _meta.connection = connection
 
         super(DjangoObjectType, cls).__init_subclass_with_meta__(
